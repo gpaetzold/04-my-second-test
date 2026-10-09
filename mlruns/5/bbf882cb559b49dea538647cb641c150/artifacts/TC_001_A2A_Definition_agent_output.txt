@@ -1,0 +1,1 @@
+Ein A2A (Asynchronous 2-way) Server ist ein Server, der auf Anforderungen von Client-Server-Systemen reagiert. Es handelt sich dabei um eine Art von Server, der mit Client-Server-Systemen interagiert und diese anhand der Anforderungen der Client-Server-Systeme anpasst.

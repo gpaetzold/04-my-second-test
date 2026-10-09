@@ -1,0 +1,1 @@
+Ein A2A (As-a-Service) Server ist ein Server, der von Benutzern oder Unternehmen als Dienst verwendet wird, ohne dass diese den Server besitzen oder betreiben müssen. Der Serviceprovider ist für die Infrastruktur und Wartung des Servers verantwortlich.

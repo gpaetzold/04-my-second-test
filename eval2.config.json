@@ -1,0 +1,14 @@
+{
+  "test_cases": [
+    {
+      "id": "TC_001_A2A_Definition",
+      "input_text": "Erkläre kurz, was ein A2A Server ist.",
+      "evaluation_criteria": "Die Antwort muss erklären, dass ein A2A-Server der standardisierten Kommunikation zwischen Software-Agenten dient."
+    },
+    {
+      "id": "TC_002_Greeting",
+      "input_text": "Hallo! Wer bist du?",
+      "evaluation_criteria": "Die Antwort muss eine freundliche Begrüßung sein und klarstellen, dass es sich um einen KI-Agenten oder Assistenten handelt."
+    }
+  ]
+}

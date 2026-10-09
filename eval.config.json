@@ -1,0 +1,14 @@
+{
+  "test_cases": [
+    {
+      "id": "TC_001_A2A_Definition",
+      "input_text": "Erkläre kurz, was ein A2A Server ist.",
+      "required_keywords": ["Agent", "Protokoll", "Kommunikation"]
+    },
+    {
+      "id": "TC_002_Greeting",
+      "input_text": "Hallo! Wer bist du?",
+      "required_keywords": ["Agent", "hilfreich"]
+    }
+  ]
+}
