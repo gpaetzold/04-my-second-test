@@ -3,24 +3,28 @@ import httpx
 import json
 import uuid
 import sys
+import os  # NEU
 import mlflow
 from datetime import datetime
 from openai import AsyncOpenAI
+from dotenv import load_dotenv  # NEU
+
+# .env Datei einlesen
+load_dotenv()
+LLM_MODEL = os.getenv("A2A_LLM_MODEL", "llama3.2:3b")
 
 BASE_URL = "http://localhost:8000"
 CONFIG_FILE = "eval2.config.json"
 
-# MLflow Experiment für die neue Streaming-Test-Pipeline definieren
-mlflow.set_experiment("A2A-Streaming-AEVAL-Pipeline")
+mlflow.set_experiment("A2A-Streaming-AEVAL-Pipeline Linux")
 
-# Der unbestechliche Richter-Client für das lokale Ollama
 judge_client = AsyncOpenAI(
     base_url="http://localhost:11434/v1",
     api_key="ollama-judge"
 )
 
 async def evaluate_with_llm(input_text: str, agent_output: str, criteria: str) -> tuple[bool, str]:
-    """Nutzt ein lokales LLM mit Chain-of-Thought, um die Streaming-Antwort zu bewerten."""
+    """Nutzt das konfigurierte lokale LLM mit Chain-of-Thought für die Bewertung."""
     judge_prompt = f"""
     Du bist ein präziser Qualitätsprüfer für KI-Software.
     Analysiere die Antwort des Agenten basierend auf dem vorgegebenen Kriterium.
@@ -34,8 +38,9 @@ async def evaluate_with_llm(input_text: str, agent_output: str, criteria: str) -
     """
     
     try:
+        # HIER GEÄNDERT: Variable LLM_MODEL genutzt
         response = await judge_client.chat.completions.create(
-            model="llama3.2:3b",
+            model=LLM_MODEL,
             messages=[{"role": "user", "content": judge_prompt}],
             temperature=0.0
         )
@@ -52,6 +57,7 @@ async def evaluate_with_llm(input_text: str, agent_output: str, criteria: str) -
 
 async def run_aeval_pipeline():
     print(f"=== Starte AEVAL Streaming-Pipeline mit {CONFIG_FILE} ===")
+    print(f"Genutztes Richter-Modell: {LLM_MODEL}\n")
     
     try:
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
@@ -67,6 +73,8 @@ async def run_aeval_pipeline():
     
     suite_name = f"AEVAL_Streaming_Suite_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     with mlflow.start_run(run_name=suite_name):
+        # MLflow den genutzten Modellnamen als globalen Parameter übergeben
+        mlflow.log_param("evaluated_model", LLM_MODEL)
         
         async with httpx.AsyncClient(timeout=None) as client:
             for tc in test_cases:
@@ -81,35 +89,28 @@ async def run_aeval_pipeline():
                 full_agent_output = ""
                 
                 try:
-                    # 1. Ausführung über den Server via client.stream() für SSE-Datenströme
                     async with client.stream("POST", f"{BASE_URL}/task/send", json=payload) as response:
                         if response.status_code != 200:
                             print(f" -> FAILED: Server-Status {response.status_code}")
                             continue
                         
                         async for line in response.aiter_lines():
-                            # KORREKTUR: .strip() entfernt unsichtbare Leerzeichen und \r Steuerzeichen
                             line = line.strip()
                             if line.startswith("data: "):
                                 json_str = line[6:]
                                 try:
                                     chunk_data = json.loads(json_str)
                                     full_agent_output += chunk_data.get("delta", "")
-                                except json.JSONDecodeError as je:
-                                    # Falls ein Chunk fehlschlägt, geben wir es im Terminal aus
-                                    print(f" -> JSON-Fehler bei Zeile: {line} ({je})")
+                                except json.JSONDecodeError:
                                     continue
                     
-                    # Trimming des finalen Textes für saubere Übergabe
                     full_agent_output = full_agent_output.strip()
                     print(f"Agent Output (rekonstruiert): \"{full_agent_output}\"")
                     
-                    # Sicherheitsprüfung: Wenn der Text leer geblieben ist, direkt abbrechen
                     if not full_agent_output:
                         print(" -> FAILED: Es wurden keine Streaming-Daten rekonstruiert.\n")
                         continue
                     
-                    # 2. Semantische Bewertung des zusammengesetzten Texts durch den LLM-Judge
                     print("Rufe LLM-Richter auf...")
                     is_valid, judge_feedback = await evaluate_with_llm(
                         input_text=tc['input_text'],
@@ -117,7 +118,6 @@ async def run_aeval_pipeline():
                         criteria=tc['evaluation_criteria']
                     )
                     
-                    # Verschachtelter MLflow Run für den einzelnen Testfall
                     with mlflow.start_run(run_name=tc['id'], nested=True):
                         mlflow.log_param("test_id", tc['id'])
                         mlflow.log_param("input_text", tc['input_text'])
@@ -137,7 +137,6 @@ async def run_aeval_pipeline():
                 except Exception as e:
                     print(f" -> FAILED aufgrund eines Ausnahmefehlers: {e}\n")
                     
-        # Gesamtergebnis im MLflow Haupt-Run protokollieren
         mlflow.log_metric("total_tests", len(test_cases))
         mlflow.log_metric("passed_tests", passed_tests)
         mlflow.log_metric("success_rate", passed_tests / len(test_cases) if test_cases else 0)

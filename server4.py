@@ -1,16 +1,20 @@
+import os
+import json
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import uvicorn
 import mlflow
 from openai import AsyncOpenAI
-import json
+from dotenv import load_dotenv # NEU: dotenv laden
 
-# 1. MLflow einrichten
+# .env Datei einlesen
+load_dotenv()
+LLM_MODEL = os.getenv("A2A_LLM_MODEL", "llama3.2:3b")
+
 mlflow.set_experiment("A2A-Streaming-LLM-Monitor")
 mlflow.openai.autolog()
 
-# 2. Async-Ollama Client initialisieren
 llm_client = AsyncOpenAI(
     base_url="http://localhost:11434/v1",
     api_key="ollama-local"
@@ -18,7 +22,6 @@ llm_client = AsyncOpenAI(
 
 app = FastAPI(title="A2A Streaming LLM Server v4")
 
-# --- Pydantic-Modelle für A2A ---
 class MessageData(BaseModel):
     role: str
     text: str
@@ -27,33 +30,26 @@ class TaskRequest(BaseModel):
     task_id: str
     message: MessageData
 
-# --- Der asynchrone SSE-Generator ---
 async def generate_llm_stream(task_id: str, prompt: str):
-    """Ruft das LLM im Streaming-Modus auf und erzeugt ein SSE-konformes Protokoll."""
     system_instruction = (
         "Du bist ein hilfreicher KI-Agent in einem A2A Netzwerk. "
         "Antworte präzise, höflich und halte dich kurz."
     )
     
-    # Aufruf mit stream=True
+    # HIER GEÄNDERT: Variable LLM_MODEL statt statischem String
     llm_stream = await llm_client.chat.completions.create(
-        model="llama3.2:3b",
+        model=LLM_MODEL,
         messages=[
             {"role": "system", "content": system_instruction},
             {"role": "user", "content": prompt}
         ],
         temperature=0.7,
-        stream=True  # WICHTIG: Aktiviert das stückchenweise Senden
+        stream=True
     )
     
-    # Wir iterieren asynchron über die eintreffenden Text-Fragmente (Chunks)
     async for chunk in llm_stream:
-        # Prüfen, ob Text im Chunk enthalten ist
         if chunk.choices and chunk.choices[0].delta.content:
             token = chunk.choices[0].delta.content
-            
-            # SSE verlangt ein spezifisches Format: "data: <Inhalt>\n\n"
-            # Um das A2A-Format zu wahren, verpacken wir das Token in ein JSON-Objekt
             chunk_payload = {
                 "task_id": task_id,
                 "status": "in_progress",
@@ -61,35 +57,25 @@ async def generate_llm_stream(task_id: str, prompt: str):
             }
             yield f"data: {json.dumps(chunk_payload)}\n\n"
             
-    # Finales Signal, dass der Stream beendet ist
     final_payload = {"task_id": task_id, "status": "completed", "delta": ""}
     yield f"data: {json.dumps(final_payload)}\n\n"
-
-
-# --- Endpunkte ---
 
 @app.get("/well-known/agent.json")
 async def get_agent_card():
     return {
-        "name": "Llama3.2 Streaming Agent (v4)",
-        "description": "Ein lokaler KI-Agent mit Token-Streaming via SSE.",
+        "name": f"Streaming Agent ({LLM_MODEL})",
+        "description": "Ein lokaler KI-Agent mit konfigurierbarem Modell via .env.",
         "url": "http://localhost:8000",
-        "version": "4.0",
-        "capabilities": {
-            "streaming": True,  # HIER AKTIVIERT
-            "push_notifications": False
-        }
+        "version": "4.1",
+        "capabilities": {"streaming": True, "push_notifications": False}
     }
 
 @app.post("/task/send")
 async def handle_task(payload: TaskRequest):
-    """Gibt eine StreamingResponse anstelle eines statischen JSONs zurück."""
-    # Wir übergeben den Generator an die FastAPI StreamingResponse
     return StreamingResponse(
         generate_llm_stream(payload.task_id, payload.message.text),
-        media_type="text/event-stream"  # Der offizielle MIME-Type für SSE
+        media_type="text/event-stream"
     )
 
 if __name__ == '__main__':
-    # Pfad exakt angepasst an server4.py
     uvicorn.run("server4:app", host="0.0.0.0", port=8000, reload=True)
