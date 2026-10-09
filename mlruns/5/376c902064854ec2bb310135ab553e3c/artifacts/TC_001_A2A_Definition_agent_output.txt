@@ -1,1 +1,0 @@
-Ein A2A (Auto-Answering and Audio) Server ist ein Dienst, der bei Anrufen in einem Telefonnetz eine automatische Antwort und das Annehmen des Anrufs aufnimmt.

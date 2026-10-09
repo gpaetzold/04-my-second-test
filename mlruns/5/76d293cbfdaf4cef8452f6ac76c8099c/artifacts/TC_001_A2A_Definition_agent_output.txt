@@ -1,1 +1,0 @@
-Ein A2A (As-a-Service) Server ist eine umschriebene Bezeichnung für Server, die als Dienstleistung angeboten werden, anstatt als eigene Hardware verkauft zu werden.

@@ -1,1 +1,0 @@
-Ein A2A (As-a-Service) Server ist ein Cloud-Computing-Dienst, bei dem ein Unternehmen ein bestimmtes Ereignis oder eine Aufgabe über eine Plattform verfügbar macht, ohne dass sie physische Ressourcen benötigt.

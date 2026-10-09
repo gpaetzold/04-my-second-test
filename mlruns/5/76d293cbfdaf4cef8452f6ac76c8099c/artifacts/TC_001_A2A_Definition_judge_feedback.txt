@@ -1,3 +1,0 @@
-Schritt 1: Die Antwort des Agenten erklärt, dass ein A2A-Server eine umschriebene Bezeichnung für Server ist, die als Dienstleistung angeboten werden, aber es fehlt eine explizite Erwähnung der Kommunikation zwischen Software-Agenten.
-
-Schritt 2: [ERGEBNIS: FAILED]
