@@ -9,6 +9,11 @@
       "id": "TC_002_Greeting",
       "input_text": "Hallo! Wer bist du?",
       "evaluation_criteria": "Die Antwort muss eine freundliche Begrüßung sein und klarstellen, dass es sich um einen KI-Agenten oder Assistenten handelt."
+    },
+    {
+      "id": "TC_003_Planets",
+      "input_text": "Welche Planeten hat die Sonne?",
+      "evaluation_criteria": "Die Antwort muss zumindest Venus, Mars, Jupiter oder Saturn enthalten."
     }
   ]
 }
